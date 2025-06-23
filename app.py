@@ -5,12 +5,13 @@ import streamlit as st
 import fitz  # PyMuPDF
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from datetime import datetime
+import time
 
 # ------------------- Model Loader -------------------
 @st.cache_resource
 def load_model():
-    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-large")
-    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-large")
+    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")  # ⬅️ Lighter & faster
+    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
     return tokenizer, model
 
 def extract_text_from_pdf(uploaded_file):
@@ -19,14 +20,14 @@ def extract_text_from_pdf(uploaded_file):
 
 # ------------------- Optimized Answer Generator -------------------
 def generate_answer(tokenizer, model, context, question):
-    input_text = f"question: {question} context: {context[-1500:]}"  # Trim context for speed
+    input_text = f"question: {question} context: {context[-1000:]}"  # Trim context for speed
     inputs = tokenizer(input_text, return_tensors="pt", truncation=True, max_length=1024)
     outputs = model.generate(
         **inputs,
-        max_new_tokens=100,         # ✂️ Shorter response
-        num_beams=2,                # 🎯 Slightly better than greedy
-        do_sample=False,            # 🚀 Faster inference
-        early_stopping=True         # 🛑 Stop early
+        max_new_tokens=80,         # Shorter response = faster
+        num_beams=2,               # Good quality with low latency
+        do_sample=False,
+        early_stopping=True
     )
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
@@ -140,12 +141,15 @@ if "context" in st.session_state:
     if submitted and user_query.strip():
         st.session_state.chat_history.append(("user", user_query, datetime.now()))
         with st.spinner("🎀 Thinking... hold on a sparkle!"):
+            start = time.time()
             answer = generate_answer(
                 st.session_state.tokenizer,
                 st.session_state.model,
                 st.session_state.context,
                 user_query
             )
+            while time.time() - start < 1.2:
+                time.sleep(0.1)  # ✨ Just enough sparkle, no delay bloat
             st.session_state.chat_history.append(("assistant", answer, datetime.now()))
         st.rerun()
 else:
