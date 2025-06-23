@@ -24,7 +24,7 @@ def generate_answer(tokenizer, model, context, question):
     inputs = tokenizer(input_text, return_tensors="pt", truncation=True, max_length=1024)
     outputs = model.generate(
         **inputs,
-        max_new_tokens=80,         # Shorter response = faster
+        max_new_tokens=160,         # Shorter response = faster
         num_beams=2,               # Good quality with low latency
         do_sample=False,
         early_stopping=True
