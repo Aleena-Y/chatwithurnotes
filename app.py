@@ -17,10 +17,17 @@ def extract_text_from_pdf(uploaded_file):
     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
     return "".join([page.get_text() for page in doc])
 
+# ------------------- Optimized Answer Generator -------------------
 def generate_answer(tokenizer, model, context, question):
-    input_text = f"question: {question} context: {context}"
+    input_text = f"question: {question} context: {context[-1500:]}"  # Trim context for speed
     inputs = tokenizer(input_text, return_tensors="pt", truncation=True, max_length=1024)
-    outputs = model.generate(**inputs, max_new_tokens=200)
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=100,         # ✂️ Shorter response
+        num_beams=2,                # 🎯 Slightly better than greedy
+        do_sample=False,            # 🚀 Faster inference
+        early_stopping=True         # 🛑 Stop early
+    )
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 # ------------------- 🌸 Styling -------------------
@@ -91,15 +98,15 @@ input[type="text"] {
 st.markdown("<h1 style='text-align:center;'>💬 PDF Chat Café</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color: #999;'>Upload a PDF and chat with it like it's your study buddy ☕</p>", unsafe_allow_html=True)
 
-# ------------------- 📎 PDF Upload -------------------
-uploaded_file = st.file_uploader("📎 Upload your PDF", type="pdf", label_visibility="collapsed")
+# ------------------- 📎 Upload PDF -------------------
+uploaded_file = st.file_uploader("📎 Upload your adorable PDF", type="pdf", label_visibility="collapsed")
 
 if uploaded_file and "context" not in st.session_state:
-    with st.spinner("🌸 Reading your PDF..."):
+    with st.spinner("🌸 Reading your precious PDF..."):
         st.session_state.context = extract_text_from_pdf(uploaded_file)
         st.session_state.tokenizer, st.session_state.model = load_model()
         st.session_state.chat_history = [(
-            "assistant", f"Hiya! I'm ready to chat with your file **{uploaded_file.name}**! Ask me anything", datetime.now()
+            "assistant", f"Hiya! I'm ready to chat with your file **{uploaded_file.name}**! Ask me anything 💕", datetime.now()
         )]
     st.session_state.uploaded_file = uploaded_file
 
@@ -123,7 +130,7 @@ if "context" in st.session_state:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------- 📨 Message Input with Send Button --------------
+    # ------------------- 📬 Message Input Form -------------------
     with st.form("message_form", clear_on_submit=True):
         st.markdown("<div class='input-box'>", unsafe_allow_html=True)
         user_query = st.text_input("Ask a question about your PDF... ✨", label_visibility="collapsed")
@@ -142,4 +149,4 @@ if "context" in st.session_state:
             st.session_state.chat_history.append(("assistant", answer, datetime.now()))
         st.rerun()
 else:
-    st.info("🌼 Please upload your PDF to begin chatting.")
+    st.info("🌼 Please upload your adorable PDF to begin chatting.")
